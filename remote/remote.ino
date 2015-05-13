@@ -52,7 +52,7 @@ void loop () {
   joy_input[2] = 0;
   radio.sendto((uint8_t*)joy_input, sizeof(joy_input), QUAD_ADDR);
   radio.waitPacketSent(); // Measure the time and include a delay
-  delay(50);
+  delay(250);
 }
 
 

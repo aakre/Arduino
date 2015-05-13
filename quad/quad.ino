@@ -14,8 +14,24 @@
 
 #define ESC_MAX 2000
 #define ESC_MIN 1000
-#define U_MAX 4
-#define U_MIN -4
+
+#define U_MAX       400
+#define U_MIN      -U_MAX
+#define U_MAX_ROLL  U_MAX/2
+#define U_MIN_ROLL -U_MAX_ROLL
+#define U_MAX_PITCH U_MAX/2
+#define U_MIN_PITCH -U_MAX_PITCH
+#define U_MAX_YAW   U_MAX/4
+#define U_MIN_YAW -U_MAX_YAW
+
+#define ROLL       0
+#define PITCH      1
+#define YAW        2
+#define ROLL_RATE  3
+#define PITCH_RATE 4
+#define YAW_RATE   5
+
+
 #define radio_speed 2000
 #define rxPin 52
 #define txPin 38//Random
@@ -36,54 +52,72 @@ float acc[3];
 float gyro[3];
 float mag[3];
 
-// Controller gains, limits, reference model parameters
-float I_MAX = 0.7*U_MAX;
-float I_MIN = -I_MAX; 
-float k_p = 5.0;
-float k_i = 0.0;
-float k_d = 150.0;
+// Controller gains and limits
+float I_MAX_ROLL = 0.7*U_MAX_ROLL;
+float I_MIN_ROLL = -I_MAX_ROLL; 
+float kp_roll = 4.5;
+float ki_roll = 0.0;
+float kp_roll_rate = 0.7;
+
+float I_MAX_PITCH = 0.7*U_MAX_PITCH;
+float I_MIN_PITCH = -I_MAX_PITCH; 
+float kp_pitch = 4.5;
+float ki_pitch = 0.0;
+float kp_pitch_rate = 0.7;
+
+float I_MAX_YAW = 0.7*U_MAX_YAW;
+float I_MIN_YAW = -I_MAX_YAW; 
+float kp_yaw = 2;
+float ki_yaw = 0.0;
+float kp_yaw_rate = 0.4;
+
+//Reference model parameters
 float zeta = 1;
 float omega = 1/(2*dt);
 
 // Loop variables and constants
-float tau[4];
-float e_roll = 0;
-float e_pitch = 0;
-float e_yaw = 0;
-float roll_d = 0;
-float pitch_d = 0;
-float yaw_d = PI/4;
-float eps[3];
-float altd = -20; //Altitude
 uint8_t buf[RH_ASK_MAX_MESSAGE_LEN];
-Quaternion q_d;
+float tau[4];
+float error_angle[3] = {0,0,0};
+float error_angular_rate[3] = {0,0,0};
+float RPY[3] = {0,0,0};
+float RPY_REF[3] = {0,0,0};
+float thrust = 300;
 
 
 // Misc.
 uint8_t buflen = sizeof(buf);
 int magContinous = 1;
-int motorPin[4] = {5,8,12,2}; 
+int motorPin[4] = {5,8,12,2};
+float rad2deg = 180/PI;
 
 
 // Modules
 HMC5883L magsens;
 MPU6050  mpu;
 PassiveObserver npo(dt);
-PID pidRoll(k_p, k_i, k_d, I_MIN, I_MAX, U_MIN, U_MAX);
-PID pidPitch(k_p, k_i, k_d, I_MIN, I_MAX, U_MIN, U_MAX);
-PID pidYaw(k_p, k_i, k_d, I_MIN, I_MAX, U_MIN, U_MAX);
+
+PID PIDS[6];
 Quadcopter quad(U_MIN, U_MAX, ESC_MIN, ESC_MAX);
 RH_ASK driver(radio_speed, rxPin, txPin, enablePin, false); // Last bool deals with signal inversion
 RHDatagram radio(driver, QUAD_ADDR);
 RefMod refmod_thrust(zeta, omega, dt);
 
-
-int initError;
 void setup() {
+  int initError = 0;
   Serial.begin(9600);
+  
+  PIDS[ROLL].init(kp_roll, ki_roll, 0, I_MIN_ROLL, I_MAX_ROLL, U_MIN_ROLL, U_MAX_ROLL);
+  PIDS[PITCH].init(kp_pitch, ki_pitch, 0, I_MIN_PITCH, I_MAX_PITCH, U_MIN_PITCH, U_MAX_PITCH);
+  PIDS[YAW].init(kp_yaw, ki_yaw, 0, I_MIN_YAW, I_MAX_YAW, U_MIN_YAW, U_MAX_YAW);
+  PIDS[ROLL_RATE].init(kp_roll_rate, 0, 0, 0, 0, U_MIN, U_MAX);
+  PIDS[PITCH_RATE].init(kp_pitch_rate, 0, 0, 0, 0, U_MIN, U_MAX);
+  PIDS[YAW_RATE].init(kp_yaw_rate, 0, 0, 0, 0, U_MIN, U_MAX);
+  
   if (mpu.init()) {
     initError += 1;
   }
+  
   delay(5);
   mpu.enableSlaveConfig();
   delay(5);
@@ -103,82 +137,83 @@ void setup() {
     npo.update(acc, gyro, mag);
     delay(T);
   }
-  float RPY[3];
   npo.getRPY((float*)RPY);
-  npo.Offset(); // Stores the current attitude as a bias that will be subtracted from the measurement
-  for (int i=0; i<10; i++) {
-    mpu.update(acc, gyro, mag);
-    npo.update(acc, gyro, mag);
-    delay(T);
-  }
-  q_d.eta = npo.qhat.eta;
-  q_d.eps1 = npo.qhat.eps1;
-  q_d.eps2 = npo.qhat.eps2;
-  q_d.eps3 = npo.qhat.eps3;
+  RPY_REF[YAW] = RPY[YAW];
+  //npo.Offset(); // Stores the current attitude as a bias that will be subtracted from the measurement
   
   if (!radio.init()) {
     initError += 1;
   }
   
   if (!initError) {
-    delay(2000);
     quad.init((int*) motorPin);
-    delay(2000);
+    delay(4000);
   } else {
     Serial.println("\nError during initialization");
+    while(1) {
+      delay(200);
+    }
   }
 }
 
 int count = 0;
 int print = 0;
+int radioLost = 0;
+
 void loop() {
-  if (!initError) {
-    now = millis();
-    if (now-prev > T) {
-      prev = now;
-      readRemote();
-      count++;
-  
-      mpu.update(acc, gyro, mag);
-      npo.update(acc, gyro, mag);
-      npo.getImag((float*)eps);
-      
-      e_roll  = q_d.eps1-eps[0];
-      e_pitch = q_d.eps2-eps[1];
-      e_yaw   = q_d.eps3-eps[2];
-      
-      tau[0] = 0;//pidRoll.update(e_roll, eps[0], 0);
-      tau[1] = 0;//pidPitch.update(e_pitch, eps[1],0);
-      tau[2] = 0;//pidYaw.update(e_yaw, eps[2],0);
-      tau[3] = altd;
-      
-      print = 0;
-      if (count==50) {
-  //      Serial.println();
-  //      for (int i=0; i<4; i++) {Serial.println(tau[i]);}
-        print = 1;
-        count = 0;
-        npo.printRPY();
-  //      Serial.println();
-  //      Serial.println(roll_d);
-  //      Serial.println(pitch_d);
-  //      Serial.println(altd);
+  now = millis();
+  if (now-prev > T) {
+    prev = now;
+    readRemote();
+    count++;
+
+    mpu.update(acc, gyro, mag);
+    npo.update(acc, gyro, mag);
+    npo.getRPY(RPY);
+    npo.getGyro(gyro);
+    
+    tau[4] = thrust;
+    
+    if (thrust > 0) {
+      for (int i=0; i<3; i++) {
+        error_angle[i] = RPY_REF[i]-rad2deg*RPY[i];
+        error_angular_rate[i] = PIDS[i].update(error_angle[i],0,0)-rad2deg*gyro[i];
+        tau[i] = PIDS[i+3].update(error_angular_rate[i],0,0);
       }
-      quad.input((float*)tau, print);
     }
-  }
+    
+    print = 0;
+    if (count==50) {
+      //for (int i=0; i<4; i++) {Serial.println(tau[i]);}
+      print = 1;
+      count = 0;
+    }
+    
+    if (radioLost >= 30) {
+      tau[0] = 0;
+      tau[1] = 0;
+      tau[2] = 0;
+      tau[3] = -1000;
+    }
+ 
+    quad.input((float*)tau, print);
+  }  
 }
 
 
 void readRemote() {
   // Execution 10-600 us
   if (radio.recvfrom(buf, &buflen)) {
-      altd = (float)(int8_t)buf[0];
-      altd = refmod_thrust.update(altd);
-      //pitch_d = (float)(int8_t)buf[1];
-      //altd = (float)(int8_t)buf[2];
-      //q_d.fromEuler(roll_d, pitch_d, yaw_d);
-    }
+      Serial.println();
+      Serial.println(thrust);
+      //RPY_REF[ROLL] = (float)(int8_t)buf[0];
+      //RPY_REF[PITCH] = (float)(int8_t)buf[1];
+      thrust = 10*((float)(int8_t)buf[0]);
+      thrust = refmod_thrust.update(thrust);
+      radioLost = 0;
+  } else {
+      //radioLost++;
+  }
 }
 
 

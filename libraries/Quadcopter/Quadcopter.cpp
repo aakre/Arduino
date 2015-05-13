@@ -60,11 +60,36 @@ void Quadcopter::input(float *tau, int print) {
     pwm[i] = max(ESC_MIN, min(ESC_MAX, (int)pwm[i]));
     motor[i].writeMicroseconds((int)pwm[i]);
   }
+
+  // pwm[0] = (pwm[0]-TAU_MIN)*k_range + ESC_MIN;
+  // pwm[0] = max(ESC_MIN, min(ESC_MAX, (int)pwm[0]));
+  // motor[0].writeMicroseconds((int)pwm[0]);
+  // pwm[3] = (pwm[3]-TAU_MIN)*k_range + ESC_MIN;
+  // pwm[3] = max(ESC_MIN, min(ESC_MAX, (int)pwm[3]));
+  // motor[3].writeMicroseconds((int)pwm[3]);
+
+  // motor[1].writeMicroseconds(ESC_MIN);
+  // motor[2].writeMicroseconds(ESC_MIN);
   if (print) {
+    int i=0;
     Serial.println();
     Serial.println("PWM input");
-    for (int i=0; i<4; i++) {
-      Serial.println(pwm[i]);
-    }
+    Serial.print("1: ");
+    Serial.print(pwm[i++]);
+    Serial.print("\t");
+    Serial.print("2: ");
+    Serial.print(pwm[i++]);
+    Serial.print("\n");
+
+    Serial.print("3: ");
+    Serial.print(pwm[i++]);
+    Serial.print("\t");
+    Serial.print("4: ");
+    Serial.print(pwm[i++]);
+    Serial.print("\n");
+
+    // for (int i=0; i<4; i++) {
+    //   Serial.println(pwm[i]);
+    // }
   }
 }

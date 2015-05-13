@@ -4,8 +4,8 @@
 #include <Arduino.h>
 
 class PID {
-  float x_d;
   float x_i;
+  float x_d;
   float k_p;
   float k_i;
   float k_d;
@@ -14,12 +14,14 @@ class PID {
   int U_MIN;
   int U_MAX;
 public:
+  PID();
   PID(float k_p, float k_i, float k_d, float I_MIN, float I_MAX,int,int);
-  float update(float error, float plant, int print);
+  float update(float error, float d_plant, int print);
   void reset_int();
-  void set_kp(float gain);
-  void set_ki(float gain);
-  void set_kd(float gain);
+  void set_k_p(float gain);
+  void set_k_i(float gain);
+  void set_k_d(float gain);
+  void init(float k_p, float k_i, float k_d, float I_MIN, float I_MAX, float U_MIN, float U_MAX );
 };
 
 

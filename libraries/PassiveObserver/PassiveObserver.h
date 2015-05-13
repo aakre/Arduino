@@ -17,6 +17,7 @@ class PassiveObserver {
   Quaternion qbias; // Quaternion bias due to angle offset
   Quaternion qtemp; // Quaternion for temporary calculations
   float bias[3];    // Bias estimate
+  float omega[3];   // Angular velocity with bias compensation
   float Ki;         // Integral gain for bias estimate
   float Kp;         // Proportional gain for observer correction
   float Ts;         // Sampling time in seconds
@@ -30,7 +31,9 @@ public:
   void update(float *acc, float *gyro, float *mag);
   void getRPY(float *RPY);
   void getImag(float *qimag);
+  void getGyro(float *gyro);
   void printRPY();
+  void printOmega();
   void Test();
   void Offset();
 };

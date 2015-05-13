@@ -39,10 +39,14 @@ void PassiveObserver::update(float *acc, float *gyro, float *mag) {
   bias[1] += tmp*filterCorr[1];
   bias[2] += tmp*filterCorr[2];
 
+  omega[0] = gyro[0]-bias[0];
+  omega[1] = gyro[1]-bias[1];
+  omega[2] = gyro[2]-bias[2];
+
   float qhat_dot_[3];
-  qhat_dot_[0] = gyro[0]-bias[0]+Kp*filterCorr[0];
-  qhat_dot_[1] = gyro[1]-bias[1]+Kp*filterCorr[1];
-  qhat_dot_[2] = gyro[2]-bias[2]+Kp*filterCorr[2];
+  qhat_dot_[0] = omega[0] + Kp*filterCorr[0];
+  qhat_dot_[1] = omega[1] + Kp*filterCorr[1];
+  qhat_dot_[2] = omega[2] + Kp*filterCorr[2];
 
   float Rqhat_T[3][3];
   float Tqhat[4][3];
@@ -107,6 +111,16 @@ void PassiveObserver::printRPY() {
   qhat.printRPY();
 }
 
+void PassiveObserver::printOmega() {
+  Serial.println();
+  Serial.print("\np (rad/s) ");
+  Serial.print(omega[0]);
+  Serial.print("\nq (rad/S) ");
+  Serial.print(omega[1]);
+  Serial.print("\nr (rad/s) ");
+  Serial.print(omega[2]);
+}
+
 
 float PassiveObserver::calc_roll(float *acc) {
   return atan(acc[1]/acc[2]);
@@ -138,6 +152,12 @@ float PassiveObserver::calc_yaw(float roll, float pitch, float *mag) {
     yaw = 1.5*PI;
   }
   return yaw;
+}
+
+void PassiveObserver::getGyro(float *gyro) {
+  gyro[0] = omega[0];
+  gyro[1] = omega[1];
+  gyro[2] = omega[2];
 }
 
 void PassiveObserver::Test() {
