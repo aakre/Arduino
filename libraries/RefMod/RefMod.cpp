@@ -1,6 +1,20 @@
 #include "RefMod.h"
 
+RefMod::RefMod() {}
+
 RefMod::RefMod(float zeta, float omega, float Ts) {
+  x[0] = 0;
+  x[1] = 0;
+  x[2] = 0;
+
+  Ad[0] = -omega*omega*omega*Ts;
+  Ad[1] = -(2*zeta+1)*omega*omega*Ts;
+  Ad[2] = -(2*zeta+1)*omega*Ts;
+  Bd = -Ad[0];
+  this->Ts = Ts;
+}
+
+void RefMod::init(float zeta, float omega, float Ts) {
   x[0] = 0;
   x[1] = 0;
   x[2] = 0;
