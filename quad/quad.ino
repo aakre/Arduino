@@ -15,14 +15,14 @@
 #define ESC_MAX 2000
 #define ESC_MIN 1000
 
-#define U_MAX       400
-#define U_MIN      -U_MAX
-#define U_MAX_ROLL  U_MAX/2
-#define U_MIN_ROLL -U_MAX_ROLL
-#define U_MAX_PITCH U_MAX/2
+#define U_MAX        100
+#define U_MIN       -U_MAX
+#define U_MAX_ROLL   250
+#define U_MIN_ROLL  -U_MAX_ROLL
+#define U_MAX_PITCH  U_MAX_ROLL
 #define U_MIN_PITCH -U_MAX_PITCH
-#define U_MAX_YAW   U_MAX/4
-#define U_MIN_YAW -U_MAX_YAW
+#define U_MAX_YAW    U_MAX/4
+#define U_MIN_YAW   -U_MAX_YAW
 
 #define ROLL       0
 #define PITCH      1
@@ -58,23 +58,23 @@ float I_MAX_ROLL = 0.7*U_MAX_ROLL;
 float I_MIN_ROLL = -I_MAX_ROLL; 
 float kp_roll = 4.5;
 float ki_roll = 0.0;
-float kd_roll = 0.7;
+float kd_roll = 0.4;
 
 float I_MAX_PITCH = 0.7*U_MAX_PITCH;
 float I_MIN_PITCH = -I_MAX_PITCH; 
 float kp_pitch = 4.5;
 float ki_pitch = 0.0;
-float kd_pitch = 0.7;
+float kd_pitch = 0.4;
 
 float I_MAX_YAW = 0.7*U_MAX_YAW;
 float I_MIN_YAW = -I_MAX_YAW; 
 float kp_yaw = 2;
 float ki_yaw = 0.0;
-float kd_yaw = 0.4;
+float kd_yaw = 0.1;
 
 //Reference model parameters
 float zeta = 1;
-float omega = 1/(2*dt);
+float omega = 1/(10*dt);
 
 // Loop variables and constants
 uint8_t buf[RH_ASK_MAX_MESSAGE_LEN];
@@ -171,10 +171,10 @@ void loop() {
     prev = now;
     
     readRemote();
-    if (radioLost >= 30) {
+    if (radioLost >= 40) {
       PILOT[ROLL] = 0;
       PILOT[PITCH] = 0;
-      PILOT[THRUST] = -1000;
+      PILOT[THRUST] = -10;
     }
     
     REF[ROLL] = REFMODS[ROLL].update(PILOT[ROLL]);
@@ -198,9 +198,12 @@ void loop() {
     
     print = 0;
     count++;
-    if (count==50) {
-      //for (int i=0; i<4; i++) {Serial.println(tau[i]);}
-      print = 1;
+    if (count==10) {
+      for (int i=0; i<4; i++) {Serial.println(tau[i]);}
+//      Serial.println();
+//      Serial.print("Thrust: ");
+//      Serial.print(tau[3]);
+      print = 0;
       count = 0;
     }
     
@@ -213,14 +216,13 @@ void loop() {
 void readRemote() {
   // Execution 10-600 us
   if (radio.recvfrom(buf, &buflen)) {
-      Serial.println();
-      Serial.println("thrust");
       //RPY_REF[ROLL] = (float)(int8_t)buf[0];
       //RPY_REF[PITCH] = (float)(int8_t)buf[1];
-      PILOT[THRUST] = 10*((float)(int8_t)buf[0]);
+      buf[0] = max(0, min(255, buf[0]));
+      PILOT[THRUST] = map(buf[0], 0, 255, -100, 100);
       radioLost = 0;
   } else {
-      radioLost++;
+      //radioLost++;
   }
 }
 

@@ -3,7 +3,7 @@
 #ifndef RefMod_h
 #define RefMod_h
 
-/* A class for a reference model */
+/* A class for a 3rd order reference model */
 class RefMod {
   float x[3];
   float Ad[3];
