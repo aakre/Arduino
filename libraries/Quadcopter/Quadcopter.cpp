@@ -6,7 +6,7 @@ Quadcopter::Quadcopter(int TAU_MIN, int TAU_MAX, int ESC_MIN, int ESC_MAX) {
   this->ESC_MIN = ESC_MIN;
   this->ESC_MAX = ESC_MAX;
   float L = 0.2125; //Half the distance between the center of two adjacent motors
-  float C = 25/120; // Scaling factor for vertical thrust
+  float C = 25.0/120.0; // Scaling factor for vertical thrust
   float T[4][4] = {
     {L, -L, -L, L},
     {L, L, -L, -L},
@@ -58,6 +58,8 @@ void Quadcopter::input(float *tau, int print) {
     // Use a linear relationship between tau and PWM
     pwm[i] = max(TAU_MIN, min(TAU_MAX, (int)pwm[i]));
     pwm[i] = (pwm[i]-TAU_MIN)*k_range + ESC_MIN;
+    /* Extra precaution during testing */
+    pwm[i] = max(ESC_MIN, min(1650, (int)pwm[i]));
     motor[i].writeMicroseconds((int)pwm[i]);
   }
 

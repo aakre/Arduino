@@ -58,13 +58,13 @@ float I_MAX_ROLL = 0.7*U_MAX_ROLL;
 float I_MIN_ROLL = -I_MAX_ROLL; 
 float kp_roll = 4.5;
 float ki_roll = 0.0;
-float kd_roll = 0.4;
+float kd_roll = 0.1;
 
 float I_MAX_PITCH = 0.7*U_MAX_PITCH;
 float I_MIN_PITCH = -I_MAX_PITCH; 
 float kp_pitch = 4.5;
 float ki_pitch = 0.0;
-float kd_pitch = 0.4;
+float kd_pitch = 0.1;
 
 float I_MAX_YAW = 0.7*U_MAX_YAW;
 float I_MIN_YAW = -I_MAX_YAW; 
@@ -78,7 +78,7 @@ float omega = 1/(10*dt);
 
 // Loop variables and constants
 uint8_t buf[RH_ASK_MAX_MESSAGE_LEN];
-float tau[4];
+float tau[4] = {0,0,0,0};
 float error_angle = 0;
 float error_angular_rate = 0;
 float RPY[3] = {0,0,0};
@@ -107,7 +107,6 @@ RefMod REFMODS[3];
 void setup() {
   int initError = 0;
   Serial.begin(9600);
-  
   PIDS[ROLL].init(kp_roll, ki_roll, 0, I_MIN_ROLL, I_MAX_ROLL, U_MIN_ROLL, U_MAX_ROLL);
   PIDS[PITCH].init(kp_pitch, ki_pitch, 0, I_MIN_PITCH, I_MAX_PITCH, U_MIN_PITCH, U_MAX_PITCH);
   PIDS[YAW].init(kp_yaw, ki_yaw, 0, I_MIN_YAW, I_MAX_YAW, U_MIN_YAW, U_MAX_YAW);
@@ -144,7 +143,7 @@ void setup() {
   }
   npo.getRPY((float*)RPY);
   REF[YAW] = RPY[YAW];
-  //npo.Offset(); // Stores the current attitude as a bias that will be subtracted from the measurement
+  npo.Offset(); // Stores the current attitude as a bias that will be subtracted from the measurement
   
   if (!radio.init()) {
     initError += 1;
@@ -174,7 +173,7 @@ void loop() {
     if (radioLost >= 40) {
       PILOT[ROLL] = 0;
       PILOT[PITCH] = 0;
-      PILOT[THRUST] = -10;
+      PILOT[THRUST] = -90;
     }
     
     REF[ROLL] = REFMODS[ROLL].update(PILOT[ROLL]);
@@ -183,26 +182,35 @@ void loop() {
     
     mpu.update(acc, gyro, mag);
     npo.update(acc, gyro, mag);
-    npo.getRPY(RPY);
-    npo.getGyro(gyro);
+    npo.getRPY((float*)RPY);
+    npo.getGyro((float*)gyro);
     
     tau[3] = REF[THRUST];
     
-    if (tau[3] > 0) {
-      for (int i=0; i<3; i++) {
+    if (tau[3] > -50) {
+//      error_angle = REF[ROLL]-rad2deg*RPY[ROLL];
+//      error_angular_rate = PIDS[ROLL].update(error_angle,0,0)-rad2deg*gyro[0];
+//      tau[0] = PIDS[3].update(error_angular_rate,0,0);
+      for (int i=0; i<2; i++) {
         error_angle = REF[i]-rad2deg*RPY[i];
         error_angular_rate = PIDS[i].update(error_angle,0,0)-rad2deg*gyro[i];
         tau[i] = PIDS[i+3].update(error_angular_rate,0,0);
       }
+    } else {
+      tau[0] = 0;
+      tau[1] = 0;
+      tau[2] = 0;
     }
     
     print = 0;
     count++;
-    if (count==10) {
-      for (int i=0; i<4; i++) {Serial.println(tau[i]);}
+    if (count==50) {
+//      Serial.println("Tau");
+//      for (int i=0; i<4; i++) {Serial.println(tau[i]);}
 //      Serial.println();
 //      Serial.print("Thrust: ");
 //      Serial.print(tau[3]);
+      npo.printRPY();
       print = 0;
       count = 0;
     }
@@ -222,7 +230,7 @@ void readRemote() {
       PILOT[THRUST] = map(buf[0], 0, 255, -100, 100);
       radioLost = 0;
   } else {
-      //radioLost++;
+      radioLost++;
   }
 }
 
