@@ -220,27 +220,27 @@ void PassiveObserver::getImag(float *qimag) {
   qimag[2] = qhat.eps3;
 }
 
-void PassiveObserver::Offset() {
+void PassiveObserver::setBias() {
   /* Compensate for the misaligned of the IMU
-   * Run the filter N times, then call the function Offset()
+   * Run the filter N times, then call this function
    * The idea is to compensate for the measured roll and pitch angle
    * such that they read ~zero when kept at rest in this position.
    * In other words, roll and pitch are reset, but yaw is unaltered.
    * This is done by multiplying the measured quaternion with the
-   * bias quaternion qbias := q2q1*
-   * where q2 preserves the yaw angle and q1 is the conjugate of the
-   * current quaternion estimate.
+   * bias quaternion qbias := q_yaw x q_rpy*
+   * where q_yaw preserves the yaw angle and q_rpy is the conjugate of the
+   * current quaternion estimate of the RPY angles.
    */
-  Quaternion q1;
-  Quaternion q2;
-  q1.eta  =  qhat.eta;
-  q1.eps1 = -qhat.eps1;
-  q1.eps2 = -qhat.eps2;
-  q1.eps3 = -qhat.eps3;
+  Quaternion q_rpy;
+  Quaternion q_yaw;
+  q_rpy.eta  =  qhat.eta;
+  q_rpy.eps1 = -qhat.eps1;
+  q_rpy.eps2 = -qhat.eps2;
+  q_rpy.eps3 = -qhat.eps3;
 
   float rpy[3];
   qhat.toEuler((float*)rpy);
-  q2.fromEuler(0.0, 0.0, rpy[2]);
-  qbias.prod(q2, q1);
+  q_yaw.fromEuler(0.0, 0.0, rpy[2]);
+  qbias.prod(q_yaw, q_rpy);
 }
 

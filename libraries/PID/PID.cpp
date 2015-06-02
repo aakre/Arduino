@@ -40,13 +40,8 @@ float PID::update(float error, float d_plant, int print) {
 
   u = P+I+D;
   if (print) {
-    Serial.println();
-    Serial.println(P);
-    Serial.println(I);
-    Serial.println(D);
-    Serial.println("--");
-    Serial.println(u);
-    Serial.println(max(U_MIN, min(U_MAX,u)));
+    Serial.print("\r\nControl output \t");
+    Serial.print(u);
   }
   /* Saturate */
   return max(U_MIN, min(U_MAX,u));

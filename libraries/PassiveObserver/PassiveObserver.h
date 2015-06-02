@@ -35,7 +35,7 @@ public:
   void printRPY();
   void printOmega();
   void Test();
-  void Offset();
+  void setBias();
 };
 
 #endif

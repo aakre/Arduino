@@ -53,13 +53,25 @@ void Quadcopter::init(int *motorPin) {
 }
 
 void Quadcopter::input(float *tau, int print) {
+
   matrix.Multiply((float*)T_alloc, (float*)tau, 4,4,1, (float*)pwm);
-  for (int i=0; i<4; i++) {
+  int i=0;
+  // if (print) {
+  //   Serial.println("\nQUAD: TAU");
+  //   for (i=0; i<4; i++) {
+  //     Serial.println(tau[i]);
+  //   }
+  //   Serial.println("\nQUAD: U");
+  //   for (i=0; i<4; i++) {
+  //     Serial.println(pwm[i]);
+  //   }
+  // }
+  for (i=0; i<4; i++) {
     // Use a linear relationship between tau and PWM
     pwm[i] = max(TAU_MIN, min(TAU_MAX, (int)pwm[i]));
     pwm[i] = (pwm[i]-TAU_MIN)*k_range + ESC_MIN;
     /* Extra precaution during testing */
-    pwm[i] = max(ESC_MIN, min(1650, (int)pwm[i]));
+    pwm[i] = max(ESC_MIN, min(1800, (int)pwm[i]));
     motor[i].writeMicroseconds((int)pwm[i]);
   }
 
