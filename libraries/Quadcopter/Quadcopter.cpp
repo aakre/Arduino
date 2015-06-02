@@ -71,7 +71,7 @@ void Quadcopter::input(float *tau, int print) {
     pwm[i] = max(TAU_MIN, min(TAU_MAX, (int)pwm[i]));
     pwm[i] = (pwm[i]-TAU_MIN)*k_range + ESC_MIN;
     /* Extra precaution during testing */
-    pwm[i] = max(ESC_MIN, min(1800, (int)pwm[i]));
+    pwm[i] = max(ESC_MIN, min(1650, (int)pwm[i]));
     motor[i].writeMicroseconds((int)pwm[i]);
   }
 

@@ -107,18 +107,28 @@ void PassiveObserver::getRPY(float *RPY) {
   qhat.toEuler(RPY);
 }
 
-void PassiveObserver::printRPY() {
+void PassiveObserver::printRPY(int deg) {
   qhat.printRPY();
 }
 
-void PassiveObserver::printOmega() {
-  Serial.println();
-  Serial.print("\np (rad/s) ");
-  Serial.print(omega[0]);
-  Serial.print("\nq (rad/S) ");
-  Serial.print(omega[1]);
-  Serial.print("\nr (rad/s) ");
-  Serial.print(omega[2]);
+void PassiveObserver::printOmega(int deg) {
+  if (deg == 0) {
+    Serial.println();
+    Serial.print("\np (rad/s) ");
+    Serial.print(omega[0]);
+    Serial.print("\nq (rad/s) ");
+    Serial.print(omega[1]);
+    Serial.print("\nr (rad/s) ");
+    Serial.print(omega[2]);
+  } else {
+    Serial.println();
+    Serial.print("\np (deg/s) ");
+    Serial.print(omega[0]*57.3);
+    Serial.print("\nq (deg/s) ");
+    Serial.print(omega[1]*57.3);
+    Serial.print("\nr (deg/s) ");
+    Serial.print(omega[2]*57.3);
+  }
 }
 
 

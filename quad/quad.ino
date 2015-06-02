@@ -24,7 +24,7 @@
 #define U_MAX_YAW    U_MAX/4
 #define U_MIN_YAW   -U_MAX_YAW
 #define THRUST_MIN  -100
-#define THRUST_MAX  50
+#define THRUST_MAX  35
 #define TAU_MIN     -120
 #define TAU_MAX     120
 
@@ -49,7 +49,7 @@
 unsigned int now = 0;
 unsigned int prev = 0;
 long printCounter = 0;
-int T = 10;
+int T = 5;
 float dt = (float)T/1000;
 
 // Measurement data
@@ -62,13 +62,13 @@ float I_MAX_ROLL = 0.7*U_MAX_ROLL;
 float I_MIN_ROLL = -I_MAX_ROLL; 
 float kp_roll = 0.0;
 float ki_roll = 0.0;
-float kd_roll = 0.0;
+float kd_roll = 6.0;
 
 float I_MAX_PITCH = 0.7*U_MAX_PITCH;
 float I_MIN_PITCH = -I_MAX_PITCH; 
-float kp_pitch = 0.4;
+float kp_pitch = 0.0;
 float ki_pitch = 0.0;
-float kd_pitch = 1.0;
+float kd_pitch = 0.0;
 
 float I_MAX_YAW = 0.7*U_MAX_YAW;
 float I_MIN_YAW = -I_MAX_YAW; 
@@ -78,7 +78,7 @@ float kd_yaw = 0.01;
 
 //Reference model parameters
 float zeta = 1;
-float omega = 1/(10*dt);
+float omega = 1/(2*dt);
 
 // Loop variables and constants
 uint8_t buf[RH_ASK_MAX_MESSAGE_LEN];
@@ -111,7 +111,7 @@ RefMod REFMODS[4];
 void setup() {
   int initError = 0;
   Serial.begin(9600);
-  PIDS[ROLL].init(kp_roll, ki_roll, 0.0, I_MIN_ROLL, I_MAX_ROLL, U_MIN_ROLL, U_MAX_ROLL);
+  PIDS[ROLL].init(kp_roll, ki_roll, kd_roll, I_MIN_ROLL, I_MAX_ROLL, U_MIN_ROLL, U_MAX_ROLL);
   PIDS[PITCH].init(kp_pitch, ki_pitch, 0.0, I_MIN_PITCH, I_MAX_PITCH, U_MIN_PITCH, U_MAX_PITCH);
   PIDS[YAW].init(kp_yaw, ki_yaw, 0, I_MIN_YAW, I_MAX_YAW, U_MIN_YAW, U_MAX_YAW);
   PIDS[ROLL_RATE].init(kd_roll, 0, 0, 0, 0, U_MIN, U_MAX);
@@ -167,6 +167,10 @@ void setup() {
 int count = 0;
 int print = 0;
 int radioLost = 0;
+int i = 0;
+
+int start = 0;
+int end = 0;
 
 void loop() {
   now = millis();
@@ -174,7 +178,7 @@ void loop() {
     prev = now;
     
     readRemote();
-    if (radioLost >= 40) {
+    if (radioLost >= 80) {
       PILOT[0] = 0;
       PILOT[1] = 0;
       PILOT[2] = -90; // Set this to slightly below the value to hover
@@ -189,16 +193,17 @@ void loop() {
     npo.getRPY((float*)RPY);
     npo.getGyro((float*)gyro);
     
+    
+    
     tau[THRUST] = REF[THRUST];
     
     if (tau[THRUST] > -70) {
-     error_angle = REF[PITCH]-rad2deg*RPY[PITCH];
-     error_angular_rate = PIDS[PITCH].update(error_angle,0,0)-rad2deg*gyro[1];
-     tau[PITCH] = PIDS[PITCH_RATE].update(error_angular_rate,0,print);
-      /* for (int i=0; i<1; i++) { */
-      /*   /\* error_angle = REF[i]-rad2deg*RPY[i]; *\/ */
-      /*   /\* tau[i] = PIDS[i].update(error_angle, rad2deg*gyro[i], print); *\/ */
-      /*   error_angular_rate = REF[i]-rad2deg*gyro[i]; */
+     error_angle = -rad2deg*RPY[ROLL];
+     error_angular_rate = -rad2deg*gyro[0];
+     tau[ROLL] = PIDS[ROLL].update(0,error_angular_rate,print);
+      /* for (i=0; i<2; i++) { */
+      /*   error_angle = REF[i]-rad2deg*RPY[i]; */
+      /*   error_angular_rate = PIDS[i].update(error_angle,0,0) - rad2deg*gyro[i]; */
       /*   tau[i] = PIDS[i+3].update(error_angular_rate,0,print); */
       /* } */
     } else {
@@ -209,15 +214,16 @@ void loop() {
     
     print = 0;
     count++;
-    if (count==50) {
-      Serial.println("\nRef \t RPY");
-      for (int i=0; i<3; i++) {
-        Serial.print(REF[i]);
-        Serial.print("\t");
-        Serial.print(RPY[i]*57);
-        Serial.print("\n");
-      }
-      print = 1;
+    if (count==100) {
+      /* Serial.println("\nRef \t RPY"); */
+      /* for (int i=0; i<3; i++) { */
+      /*   Serial.print(REF[i]); */
+      /*   Serial.print("\t"); */
+      /*   Serial.print(RPY[i]*57); */
+      /*   Serial.print("\n"); */
+      /* } */
+      npo.printRPY(0);
+      print = 0;
       count = 0;
     }
     

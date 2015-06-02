@@ -114,6 +114,11 @@ int MPU6050::init() {
   // Set up low pass filter on the MPU6050
   write_reg(MPU6050_CONFIG, MPU6050_DLPF_5HZ);
 
+  // Set up the sample rate by dividing 1khz (if DLPF enabled) by sample_div
+  uint8_t sample_div = 4; // 1khz / (1+4) = 200 Hz
+  write_reg(MPU6050_SMPLRT_DIV, sample_div);
+
+
   // Clear the 'sleep' bit to start the sensor.
   write_reg(MPU6050_PWR_MGMT_1, 0);
   return error;
@@ -135,6 +140,23 @@ void MPU6050::addSlave(uint8_t slave_addr, uint8_t read_reg) {
   write_reg(MPU6050_I2C_SLV0_ADDR, slv0_addr);
   write_reg(MPU6050_I2C_SLV0_REG, slv0_reg);
   write_reg(MPU6050_I2C_SLV0_CTRL, slv0_ctrl);
+
+  // Set the sample rate of the slave
+  // The slave outputs at ~75 Hz
+  // The MPU6050 samples at 200 Hz, so delay by 3 samples to obtain
+  // ~66.67 Hz sampling of the slave
+  // Delayed by 1/(1 + I2C_MST_DLY)
+  uint8_t mst_dly;
+  read(MPU6050_I2C_SLV4_CTRL, &mst_dly,1);
+  mst_dly &= ~MPU6050_I2C_MST_DLY_MASK; //Clear old delay
+  bitSet(mst_dly, MPU6050_D1); // Write a 2.
+  write_reg(MPU6050_I2C_SLV4_CTRL, mst_dly);
+
+  // Enable delayed sampling of slave
+  uint8_t mst_dly_ctrl;
+  read(MPU6050_I2C_MST_DELAY_CTRL, &mst_dly_ctrl,1);
+  bitSet(mst_dly_ctrl, MPU6050_I2C_SLV0_DLY_EN);
+  write_reg(MPU6050_I2C_MST_DELAY_CTRL, mst_dly_ctrl);
 }
 
 void MPU6050::enableSlaveConfig() {

@@ -32,8 +32,8 @@ public:
   void getRPY(float *RPY);
   void getImag(float *qimag);
   void getGyro(float *gyro);
-  void printRPY();
-  void printOmega();
+  void printRPY(int deg);
+  void printOmega(int deg);
   void Test();
   void setBias();
 };
