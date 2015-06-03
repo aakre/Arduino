@@ -35,6 +35,9 @@
 #define PITCH_RATE 4
 #define YAW_RATE   5
 #define THRUST     3
+#define P          0
+#define Q          1
+#define R          2
 
 
 #define radio_speed 2000
@@ -60,9 +63,9 @@ float mag[3];
 // Controller gains and limits
 float I_MAX_ROLL = 0.7*U_MAX_ROLL;
 float I_MIN_ROLL = -I_MAX_ROLL; 
-float kp_roll = 0.0;
+float kp_roll = 0.5;
 float ki_roll = 0.0;
-float kd_roll = 6.0;
+float kd_roll = 0.0;
 
 float I_MAX_PITCH = 0.7*U_MAX_PITCH;
 float I_MIN_PITCH = -I_MAX_PITCH; 
@@ -188,19 +191,19 @@ void loop() {
     REF[PITCH] = REFMODS[PITCH].update(PILOT[1]);
     REF[THRUST] = REFMODS[THRUST].update(PILOT[2]);
     
+    //~3450 us
     mpu.update(acc, gyro, mag);
     npo.update(acc, gyro, mag);
     npo.getRPY((float*)RPY);
     npo.getGyro((float*)gyro);
-    
+    //
     
     
     tau[THRUST] = REF[THRUST];
     
     if (tau[THRUST] > -70) {
      error_angle = -rad2deg*RPY[ROLL];
-     error_angular_rate = -rad2deg*gyro[0];
-     tau[ROLL] = PIDS[ROLL].update(0,error_angular_rate,print);
+     tau[ROLL] = PIDS[ROLL].update(error_angle, rad2deg*gyro[P], print);
       /* for (i=0; i<2; i++) { */
       /*   error_angle = REF[i]-rad2deg*RPY[i]; */
       /*   error_angular_rate = PIDS[i].update(error_angle,0,0) - rad2deg*gyro[i]; */
@@ -226,8 +229,8 @@ void loop() {
       print = 0;
       count = 0;
     }
-    
-    quad.input((float*)tau, print);
+    quad.input((float*)tau, print); //~80 us
+   
     
   } // End quad routine  
 }
